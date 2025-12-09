@@ -47,5 +47,5 @@ As a student at National Taiwan University (NTU), choosing what to eat every day
 
 ---
 
-Created by **Yu-Syuan Weng** & **Gemini 3 Pro**  
+Created by **Yu-Syuan Weng(翁譽瑄)** & **Gemini 3 Pro**  
 Food list curated by **JinJin**
