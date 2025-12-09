@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- 加入防快取 Meta Tags -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <title>臺大吃到吐</title>
+    
+    <!-- 引入 React 和 Tailwind -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 隱藏檔案輸入框 */
+        input[type="file"] { display: none; }
+        
+        /* Modal 動畫 */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-overlay { animation: fadeIn 0.2s ease-out; }
+        .modal-content { animation: slideUp 0.3s ease-out; }
+        
+        /* AI 閃爍效果 */
+        @keyframes sparkle {
+            0% { opacity: 0.5; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.5; transform: scale(0.9); }
+        }
+        .sparkle-anim { animation: sparkle 2s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-orange-50 text-gray-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // ==========================================
+        // ▼ 預設資料 (已包含柒食貳修正) ▼
+        // ==========================================
+        const DEFAULT_CSV_CONTENT = `餐廳名稱;評分;價格;主分類;次分類;備註
+郭記牛肉麵;4.2;$1-200;正餐;中式麵食;
+鱷吐司 A Toast;4.4;$1-200;早餐/早午餐;吐司/三明治;
+公館食堂;4.4;$1-200;正餐;台式小吃;
+阿鸞手工法國麵包;3.9;$1-200;正餐;越南料理;
+站食可以;4.4;$1-200;正餐;複合式/簡餐;
+沙嗲士多;4.2;$1-200;正餐;港式料理;
+大福利排骨大王 公館店;3.8;$1-200;正餐;台式便當;
+蠶居生活美食;4.2;$1-200;正餐;台式家常菜;
+五九麵館（公館店）;4.5;$1-200;正餐;中式麵食;
+七里亭;3.9;$1-200;正餐;台式簡餐;
+鳳城燒臘粵菜;4.0;$1-200;正餐;港式燒臘;
+厚食均衡飲食專賣店;4.3;$1-200;正餐;健康餐盒;
+小飯廳;3.9;$1-200;正餐;台式簡餐;
+雪球咖啡 (公館店);4.4;$1-200;早餐/早午餐;咖啡/輕食;
+且慢食所;4.9;$1-200;早餐/早午餐;傳統早餐;
+阿英滷肉飯;3.6;$1-200;正餐;台式小吃;
+一川鍋燒麵;4.5;$1-200;正餐;台式鍋燒麵;
+順園小館;4.0;$200-400;正餐;中式點心/麵食;
+親來食堂;4.2;$1-200;正餐;台式快炒;
+福二漢堡製造所;4.0;$1-200;早餐/早午餐;漢堡;
+李記水餃;3.7;$1-200;正餐;水餃/麵食;
+瑞哥雞肉飯;4.8;$1-200;正餐;雞肉飯;
+阿孟石碗燒河粉;4.5;$1-200;正餐;越南料理;
+老哥雞肉飯乾拌麵;3.9;$1-200;正餐;雞肉飯/麵食;
+文哥 巷仔口米粉湯;4.3;$1-200;正餐;台式米粉湯;
+湄賽雲泰料理;4.3;$1-200;正餐;泰式料理;
+好食早餐;4.6;$1-200;早餐/早午餐;傳統早餐;
+大安米粉湯;4.7;$1-200;正餐;台式小吃;
+公館阿姨滷味;4.7;$1-200;正餐/宵夜;滷味;
+越南清化河粉;4.3;$1-200;正餐;越南料理;
+Miss Energy 能量小姐;4.1;$1-200;正餐;健康餐盒;
+海鮮粥.麵;4.6;$1-200;正餐;海鮮粥麵;
+糊塗麵;4.1;$1-200;正餐;中式麵食;
+龍泉深海鮮魚湯;4.1;$1-200;正餐;鮮魚湯;
+柒食貳;4.2;$1-200;正餐;台式簡餐;類似學生餐廳
+杨記全麥營養潤餅捲;4.2;$1-200;點心;潤餅;
+祥滿速食餐坊;4.3;$1-200;正餐;海鮮/清蒸魚;
+得記麻辣脆皮臭豆腐;4.0;$1-200;正餐;麻辣臭豆腐;
+指有雞飯 CHICKEN RICE ONLY;4.2;$1-200;正餐;海南雞飯;
+阿里媽媽南洋料理;4.3;$1-200;正餐;新馬料理;
+麻辣巴蕾;4.2;$1-200;正餐;重慶酸辣粉;
+阿郎鹽酥雞;4.3;$1-200;宵夜;炸物;
+阿二麻辣鹹水雞;4.8;$1-200;正餐/宵夜;鹹水雞;
+小方塊韓式可頌鬆餅;4.9;$1-200;甜點;鬆餅/可頌;
+人性甜點;4.8;;甜點;泡芙/甜點;
+YoYo韓式飯捲;4.6;暫時關閉;正餐;韓式料理;
+回味麵煎餅;3.8;$1-200;點心;中式餡餅;
+龍潭豆花;4.3;$1-200;甜點;豆花;
+La fossette 老法的酒窩;4.8;暫時關閉;甜點;法式甜點;
+樂和牛排館;4.4;$200-400;正餐;牛排;
+神燈搓一下;4.5;$400-600;正餐;咖哩/異國;
+吉天元拉麵;4.4;$200-400;正餐;日式拉麵;
+大山東餅舖;4.2;$1-200;點心;包子/饅頭;
+米米村 韓式拌飯;4.3;$1-200;正餐;韓式料理;
+泰順街車輪餅;4.6;$1-200;甜點;車輪餅;
+蘇活義大利麵坊;4.3;$200-400;正餐;義式料理;
+璞田PureTime家庭料理;4.8;$200-400;正餐;台式簡餐;
+阿薄郎台式小酒館;4.6;$200-400;正餐;台式居酒屋/餃子;
+燒肉政宗;4.7;$400-600;正餐;日式燒肉;
+池先生 kopitiam;4.3;$200-400;正餐;馬來西亞料理;
+小螺波;4.3;$200-400;正餐;螺螄粉;
+墨竹亭 燃麵本家;4.6;$1-200;正餐;中式麵食;
+雞湯大叔;4.7;$400-600;正餐;火鍋;
+詹記麻辣火鍋;4.4;$600-1000;正餐;麻辣火鍋;
+品鱻海鮮熱炒店;4.1;$200-400;正餐;台式熱炒;
+小尚品精制鍋物;4.7;$200-400;正餐;火鍋;
+神秘花園;4.4;$1-200;正餐;西式簡餐;
+雙月食品社;4.9;$200-400;正餐;台式養生湯品;
+TaSweet菓子屋;4.3;;甜點;蛋糕捲;
+無尾熊雞蛋糕;4.7;$1-200;甜點;雞蛋糕;
+Barkers;4.4;$200-400;正餐;美式熱狗/漢堡;
+ONE GOOD烤肉飯;4.8;$1-200;正餐;日式丼飯;
+蘇草salvia;4.5;$200-400;正餐;義大利麵/簡餐;
+耍性子 Xai Xing Dé;4.5;$200-400;正餐;韓式/義式;
+拉麵らぁ麺魚堺;4.7;$200-400;正餐;日式拉麵;
+小李子清粥小菜;3.7;$200-400;正餐/宵夜;清粥小菜;
+巷子李麵;4.8;$1-200;正餐;麵食;
+塊雞師食務所;4.4;$200-400;正餐;炸雞/簡餐;
+大埔鐵板燒;4.0;$200-400;正餐;鐵板燒;
+墨洋拉麵;4.1;$200-400;正餐;日式拉麵;
+泰街頭;3.9;$200-400;正餐;泰式料理;
+小川西堂;4.2;$200-400;正餐;中式麵食/麻辣;
+NoName無名咖哩;4.3;$1-200;正餐;日式咖哩;
+豬ㄟ早午餐;4.6;$1-200;早餐/早午餐;三明治/蛋餅;
+溏老鴨平價小火鍋;4.4;$1-200;正餐;火鍋;
+稻咖哩;4.4;$200-400;正餐;日式咖哩;
+臺一牛奶大王;4.1;$1-200;甜點;冰品/湯圓;
+瑪莉珍比薩;4.3;$200-400;正餐;披薩;
+麥子磨麵;3.8;$1-200;正餐;日式拉麵;
+巫雲;4.3;$200-400;正餐;雲南料理;
+Este día 這一天異國廚房;4.9;$200-400;正餐;古巴三明治;
+Mr. 雪腐;4.6;$1-200;甜點;冰品;
+首爾之家;4.0;$400-600;正餐;韓式料理;
+赤神日式豬排;4.2;$200-400;正餐;日式豬排;
+靜壽司;4.4;$200-400;正餐;日式壽司;
+Second Floor 貳樓;4.3;$400-600;早餐/早午餐;美式/早午餐;
+重順川菜餐廳;4.2;$200-400;正餐;川菜;
+巴伯Q奶;4.4;$1-200;飲料;手搖飲;
+Cui Lian Kitchen 淬煉廚房;4.7;$1-200;正餐;披薩;
+丼壽司;4.4;$200-400;正餐;日式丼飯;
+隱家拉麵;4.2;$200-400;正餐;日式拉麵;
+築本屋;4.8;$1-200;正餐;日式豬排;
+三米三小館;4.3;$1-200;正餐;複合式;
+JJ's POKE & CAFE;4.1;$1-200;正餐;夏威夷拌飯;
+泰好吃泰國船麵;4.5;$1-200;正餐;泰式料理;
+韓天閣;4.0;$200-400;正餐;韓式料理;`;
+
+        const { useState, useEffect, useRef } = React;
+        
+        // --- Icons ---
+        const Utensils = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>;
+        const RotateCcw = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+        const Shuffle = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l14.2-12.6c.8-1.1 2-1.7 3.3-1.7H22"/><path d="M2 6h1.4c1.3 0 2.5.6 3.3 1.7l14.2 12.6c.8 1.1 2 1.7 3.3 1.7H22"/></svg>;
+        const Navigation = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>;
+        const PlusCircle = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="16"/><line x1="8" x2="16" y1="12" y2="12"/></svg>;
+        const X = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const Upload = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
+        const Sparkles = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 5H1"/></svg>;
+
+        function FoodSelectorApp() {
+            const [allRestaurants, setAllRestaurants] = useState([]);
+            const [isSpinning, setIsSpinning] = useState(false);
+            const [selectedResult, setSelectedResult] = useState(null);
+            const [displayItem, setDisplayItem] = useState("今天吃什麼？");
+            const [history, setHistory] = useState([]);
+            
+            // Modal 狀態
+            const [showModal, setShowModal] = useState(false);
+            const [activeTab, setActiveTab] = useState('manual'); 
+            
+            // AI Modal 狀態
+            const [showAIModal, setShowAIModal] = useState(false);
+            const [aiPrompt, setAiPrompt] = useState('');
+            const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+            const [isAiLoading, setIsAiLoading] = useState(false);
+            const [aiReason, setAiReason] = useState('');
+
+            // 手動新增表單
+            const [formData, setFormData] = useState({
+                name: '', rating: '', price: '$1-200', mainCat: '正餐', subCat: '', note: ''
+            });
+
+            const intervalRef = useRef(null);
+            const fileInputRef = useRef(null);
+
+            // 篩選狀態
+            const [mainFilter, setMainFilter] = useState('All'); 
+            const [cuisineFilter, setCuisineFilter] = useState('All');
+
+            // --- 核心邏輯升級：支援多重標籤 (回傳 Array) ---
+            const classifyCuisine = (subCat) => {
+                if (!subCat) return ['其他'];
+                const s = subCat;
+                const tags = [];
+                
+                // 1. 台式/中式 (擴充: 臭豆腐, 滷味, 米粉湯, 牛肉麵, 鹹水雞, 潤餅)
+                if (s.match(/(台式|中式|港式|燒臘|水餃|麵食|雞肉飯|米粉湯|粥|熱炒|川菜|小吃|便當|家常菜|餡餅|包子|饅頭|螺螄粉|鐵板燒|雲南|複合式|簡餐|臭豆腐|滷味|牛肉麵|鹹水雞|潤餅)/)) {
+                    tags.push('台式/中式');
+                }
+                
+                // 2. 日式
+                if (s.match(/(日式|拉麵|壽司|丼飯|豬排|燒肉|居酒屋|串燒|日本)/)) {
+                    tags.push('日式');
+                }
+                
+                // 3. 異國/南洋
+                if (s.match(/(泰式|越南|馬來西亞|新馬|異國|新加坡|泰國|韓式|韓國|古巴|印度)/)) {
+                    tags.push('異國/南洋');
+                }
+                
+                // 4. 西式
+                if (s.match(/(美式|義式|義大利|漢堡|牛排|披薩|薄餅|西式|法式|美國|西部|早午餐|三明治|吐司)/)) {
+                    tags.push('西式');
+                }
+                
+                // 5. 鍋物/湯品 (擴充: 麻辣, 臭豆腐, 滷味, 米粉湯, 鮮魚湯)
+                // 這樣「得記」或「米粉湯」就會同時出現在 台式 和 鍋物
+                if (s.match(/(火鍋|麻辣|滷味|臭豆腐|湯品|米粉湯|砂鍋|牛肉麵|鮮魚湯)/)) {
+                    tags.push('鍋物');
+                }
+                
+                // 6. 健康/輕食
+                if (s.match(/(健康|夏威夷|輕食|潤餅|沙拉)/)) {
+                    tags.push('健康/輕食');
+                }
+                
+                if (tags.length === 0) tags.push('其他');
+                return tags;
+            };
+
+            const parseCSV = (content) => {
+                const rows = content.split('\n');
+                const dataRows = rows.slice(1); 
+                const parsed = dataRows
+                    .filter(row => row.trim() !== '')
+                    .map((row, index) => {
+                        const cols = row.split(';');
+                        if (cols.length < 2) return null;
+                        const name = cols[0].trim();
+                        const rating = cols[1] ? cols[1].trim() : "";
+                        const price = cols[2] ? cols[2].trim() : "";
+                        const mainCat = cols[3] ? cols[3].trim() : "其他";
+                        const subCat = cols[4] ? cols[4].trim() : "";
+                        const note = cols[5] ? cols[5].trim() : "";
+                        const cuisineGroup = classifyCuisine(subCat); // 現在這是 Array
+                        return {
+                            id: Date.now() + index,
+                            name, rating, price, mainCat, subCat, cuisineGroup,
+                            note: note || `${rating}★ ${subCat}`
+                        };
+                    })
+                    .filter(item => item !== null);
+                setAllRestaurants(parsed);
+                setHistory([]);
+            };
+
+            useEffect(() => {
+                parseCSV(DEFAULT_CSV_CONTENT);
+            }, []);
+
+            // --- AI 功能 ---
+            const handleAISuggestion = async () => {
+                if (!apiKey.trim()) {
+                    alert("請先輸入您的 Gemini API Key 才能使用 AI 功能喔！");
+                    return;
+                }
+                if (!aiPrompt.trim()) {
+                    alert("請告訴 AI 您今天想吃什麼！");
+                    return;
+                }
+
+                setIsAiLoading(true);
+                localStorage.setItem('gemini_api_key', apiKey); // 記住 Key
+
+                // 準備給 AI 的精簡清單 (節省 token)
+                const simpleList = allRestaurants.map(r => ({
+                    id: r.id,
+                    n: r.name, // Name
+                    c: r.subCat, // Category
+                    p: r.price // Price
+                }));
+
+                const systemPrompt = `You are a food expert near NTU (Taiwan). Pick the single best restaurant from the list below based on the user's desire.
+                List: ${JSON.stringify(simpleList)}
+                User says: "${aiPrompt}"
+                Return ONLY a valid JSON object: { "id": number, "reason": "A fun, witty reason in Traditional Chinese (max 30 words)" }`;
+
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: systemPrompt }] }]
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error.message);
+
+                    const text = data.candidates[0].content.parts[0].text;
+                    // 清理可能存在的 markdown block
+                    const jsonStr = text.replace(/```json|```/g, '').trim();
+                    const result = JSON.parse(jsonStr);
+
+                    const restaurant = allRestaurants.find(r => r.id === result.id);
+                    if (restaurant) {
+                        setShowAIModal(false);
+                        setDisplayItem(restaurant.name);
+                        setSelectedResult(restaurant);
+                        setAiReason(result.reason); // 設定 AI 評語
+                        setIsSpinning(false);
+                    } else {
+                        alert("AI 挑選了一家不存在的餐廳，請再試一次");
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                    alert("AI 思考失敗：" + error.message);
+                } finally {
+                    setIsAiLoading(false);
+                }
+            };
+
+            // 手動新增功能
+            const handleAddManual = (e) => {
+                e.preventDefault();
+                if(!formData.name) return;
+                const newItem = {
+                    id: Date.now(),
+                    name: formData.name,
+                    rating: formData.rating,
+                    price: formData.price,
+                    mainCat: formData.mainCat,
+                    subCat: formData.subCat,
+                    cuisineGroup: classifyCuisine(formData.subCat),
+                    note: formData.note || `${formData.rating}★ ${formData.subCat}`
+                };
+                setAllRestaurants(prev => [newItem, ...prev]);
+                alert(`已新增：${formData.name}`);
+                setShowModal(false);
+                setFormData({ name: '', rating: '', price: '$1-200', mainCat: '正餐', subCat: '', note: '' });
+            };
+
+            const handleFileUpload = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    parseCSV(e.target.result);
+                    alert("匯入成功！已更新餐廳清單。");
+                    setShowModal(false);
+                };
+                reader.readAsText(file);
+            };
+
+            const getFilteredRestaurants = () => {
+                let filtered = allRestaurants;
+                if (mainFilter === 'Breakfast') {
+                    filtered = filtered.filter(r => r.mainCat.includes('早餐'));
+                } else if (mainFilter === 'Dessert') {
+                    filtered = filtered.filter(r => r.mainCat.includes('甜點') || r.mainCat.includes('飲料') || r.mainCat.includes('點心'));
+                } else if (mainFilter === 'Main') {
+                    filtered = filtered.filter(r => r.mainCat.includes('正餐') || r.mainCat.includes('宵夜'));
+                    if (cuisineFilter !== 'All') {
+                        filtered = filtered.filter(r => r.cuisineGroup.includes(cuisineFilter));
+                    }
+                }
+                return filtered;
+            };
+
+            // 強制重整功能
+            const handleForceReload = () => {
+                if (confirm("這將會強制重新整理網頁以獲取最新版本，確定嗎？")) {
+                    window.location.href = window.location.pathname + '?v=' + new Date().getTime();
+                }
+            };
+
+            const handleRandomize = () => {
+                setAiReason(''); // 清除 AI 評語
+                const candidates = getFilteredRestaurants();
+                if (candidates.length === 0) {
+                    alert("篩選條件下沒有餐廳！請放寬條件。");
+                    return;
+                }
+                setIsSpinning(true);
+                setSelectedResult(null);
+
+                let available = candidates.filter(r => !history.includes(r.id));
+                if (available.length === 0) {
+                    available = candidates;
+                    const candidateIds = candidates.map(c => c.id);
+                    setHistory(prev => prev.filter(id => !candidateIds.includes(id)));
+                }
+
+                let count = 0;
+                const totalDuration = 1500;
+                const speed = 40;
+
+                intervalRef.current = setInterval(() => {
+                    const randomIdx = Math.floor(Math.random() * candidates.length);
+                    setDisplayItem(candidates[randomIdx].name);
+                    count += speed;
+                }, speed);
+
+                setTimeout(() => {
+                    clearInterval(intervalRef.current);
+                    const finalIndex = Math.floor(Math.random() * available.length);
+                    const winner = available[finalIndex];
+                    
+                    setDisplayItem(winner.name);
+                    setSelectedResult(winner);
+                    setIsSpinning(false);
+                    setHistory(prev => [...prev, winner.id]);
+                }, totalDuration);
+            };
+
+            const openGoogleMaps = (name) => {
+                const query = encodeURIComponent(`台大公館 ${name}`);
+                window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+            };
+
+            return (
+                <div className="min-h-screen font-sans flex flex-col max-w-md mx-auto overflow-hidden relative bg-orange-50 border-x border-orange-100">
+                    <header className="bg-orange-500 text-white p-4 shadow-sm z-10 flex justify-between items-center">
+                        <h1 className="text-xl font-bold flex items-center gap-2 tracking-wide">
+                            <Utensils className="w-6 h-6" />
+                            臺大吃到吐
+                        </h1>
+                        <button onClick={() => setShowModal(true)} className="bg-orange-600 p-2 rounded-full hover:bg-orange-700 transition-colors shadow-sm border border-orange-400">
+                            <PlusCircle className="w-5 h-5" />
+                        </button>
+                    </header>
+
+                    {/* AI Modal */}
+                    {showAIModal && (
+                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+                            <div className="modal-overlay absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm" onClick={() => setShowAIModal(false)}></div>
+                            <div className="modal-content bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-sm overflow-hidden z-10 relative p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 flex items-center gap-2">
+                                        <Sparkles className="w-5 h-5 text-blue-500" /> AI 靈感幫手
+                                    </h2>
+                                    <button onClick={() => setShowAIModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">您的 Gemini API Key (僅儲存於本地)</label>
+                                        <input 
+                                            type="password" 
+                                            className="w-full border rounded-lg p-2 text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none" 
+                                            placeholder="請貼上 API Key..." 
+                                            value={apiKey} 
+                                            onChange={e => setApiKey(e.target.value)} 
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-1">還沒有 Key？去 Google AI Studio 免費申請一個吧！</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">今天心情如何？想吃點什麼？</label>
+                                        <textarea 
+                                            className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none h-24 resize-none" 
+                                            placeholder="例如：剛考完試想吃好一點、月底了想吃便宜的、想吃辣的發洩一下..." 
+                                            value={aiPrompt} 
+                                            onChange={e => setAiPrompt(e.target.value)} 
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={handleAISuggestion} 
+                                        disabled={isAiLoading}
+                                        className={`w-full py-3 rounded-xl font-bold text-white shadow-sm flex items-center justify-center gap-2 transition-all ${isAiLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'}`}
+                                    >
+                                        {isAiLoading ? <span className="flex items-center gap-2"><Sparkles className="w-4 h-4 animate-spin"/> AI 正在思考中...</span> : <><Sparkles className="w-4 h-4"/> 幫我選一家！</>}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 新增/匯入 Modal */}
+                    {showModal && (
+                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+                            <div className="modal-overlay absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
+                            <div className="modal-content bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-sm overflow-hidden z-10 relative">
+                                <div className="flex border-b">
+                                    <button 
+                                        className={`flex-1 py-3 font-bold text-sm ${activeTab === 'manual' ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        onClick={() => setActiveTab('manual')}
+                                    >手動新增</button>
+                                    <button 
+                                        className={`flex-1 py-3 font-bold text-sm ${activeTab === 'csv' ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        onClick={() => setActiveTab('csv')}
+                                    >匯入 CSV</button>
+                                    <button onClick={() => setShowModal(false)} className="absolute right-2 top-2 p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+                                </div>
+
+                                <div className="p-6">
+                                    {activeTab === 'manual' ? (
+                                        <form onSubmit={handleAddManual} className="space-y-3">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1">餐廳名稱</label>
+                                                <input required type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="例如: 姐妹花雞排" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <div className="flex-1">
+                                                    <label className="block text-xs font-bold text-gray-500 mb-1">評分</label>
+                                                    <input type="number" step="0.1" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="4.5" value={formData.rating} onChange={e => setFormData({...formData, rating: e.target.value})} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="block text-xs font-bold text-gray-500 mb-1">價格</label>
+                                                    <select className="w-full border rounded-lg p-2 bg-white" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})}>
+                                                        <option>$1-200</option>
+                                                        <option>$200-400</option>
+                                                        <option>$400-600</option>
+                                                        <option>$600+</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <div className="flex-1">
+                                                    <label className="block text-xs font-bold text-gray-500 mb-1">主分類</label>
+                                                    <select className="w-full border rounded-lg p-2 bg-white" value={formData.mainCat} onChange={e => setFormData({...formData, mainCat: e.target.value})}>
+                                                        <option>正餐</option>
+                                                        <option>早餐/早午餐</option>
+                                                        <option>甜點</option>
+                                                        <option>飲料</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="block text-xs font-bold text-gray-500 mb-1">次分類 (菜系)</label>
+                                                    <input type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="如: 日式, 韓式" value={formData.subCat} onChange={e => setFormData({...formData, subCat: e.target.value})} />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1">備註</label>
+                                                <input type="text" className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="必點..." value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} />
+                                            </div>
+                                            <button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl mt-2 transition-colors">加入清單</button>
+                                        </form>
+                                    ) : (
+                                        <div className="text-center py-4">
+                                            <div className="bg-orange-50 rounded-xl p-4 mb-4 text-left text-sm text-gray-600 space-y-2 border border-orange-100">
+                                                <p className="font-bold text-orange-700">CSV 格式要求 (分號分隔):</p>
+                                                <code className="block bg-white p-2 rounded text-xs">餐廳名稱;評分;價格;主分類;次分類;備註</code>
+                                                <p className="text-xs">請確保使用分號 (;) 而非逗號，避免欄位錯亂。</p>
+                                            </div>
+                                            <button onClick={() => fileInputRef.current.click()} className="w-full border-2 border-dashed border-gray-300 hover:border-orange-500 hover:text-orange-500 text-gray-400 font-bold py-8 rounded-xl transition-all flex flex-col items-center gap-2">
+                                                <Upload className="w-8 h-8" />
+                                                點擊選擇 CSV 檔案
+                                            </button>
+                                            <input type="file" ref={fileInputRef} accept=".csv" onChange={handleFileUpload} />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 篩選區塊 */}
+                    <div className="bg-white p-3 border-b border-orange-100 z-10">
+                        <div className="flex gap-2 mb-2 overflow-x-auto no-scrollbar pb-1">
+                            {['All', 'Main', 'Breakfast', 'Dessert'].map(type => (
+                                <button 
+                                    key={type}
+                                    onClick={() => { setMainFilter(type); setCuisineFilter('All'); }}
+                                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
+                                        mainFilter === type 
+                                        ? 'bg-orange-500 text-white shadow-sm' 
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    {type === 'All' ? '全部' : type === 'Main' ? '正餐' : type === 'Breakfast' ? '早餐' : '甜點/飲料'}
+                                </button>
+                            ))}
+                        </div>
+
+                        {mainFilter === 'Main' && (
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                {['All', '台式/中式', '日式', '異國/南洋', '西式', '鍋物', '健康/輕食'].map(c => (
+                                    <button 
+                                        key={c}
+                                        onClick={() => setCuisineFilter(c)}
+                                        className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition-all ${
+                                            cuisineFilter === c 
+                                            ? 'bg-blue-100 text-blue-700 border-blue-200' 
+                                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                        }`}
+                                    >
+                                        {c === 'All' ? '不拘' : c}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        
+                        <div className="text-center mt-2 text-xs text-gray-400">
+                            符合條件：{getFilteredRestaurants().length} 家
+                        </div>
+                    </div>
+
+                    <main className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none select-none">
+                            <div className="absolute top-10 left-10 text-9xl">🍜</div>
+                        </div>
+
+                        <div className={`w-full bg-white rounded-3xl p-8 text-center transition-all duration-300 border border-orange-100 shadow-sm ${isSpinning ? 'scale-105 shadow-md' : ''}`}>
+                            <div className="mb-6 h-32 flex items-center justify-center relative">
+                                <h2 className={`text-3xl font-black text-gray-800 leading-tight ${isSpinning ? 'opacity-50 blur-[1px]' : ''}`}>
+                                    {displayItem}
+                                </h2>
+                            </div>
+
+                            {!isSpinning && selectedResult && (
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 mb-6">
+                                    {aiReason && (
+                                        <div className="mb-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100 p-3 rounded-xl text-left shadow-sm">
+                                            <div className="flex items-center gap-2 mb-1 text-xs font-bold text-blue-600">
+                                                <Sparkles className="w-3 h-3" /> AI 推薦原因：
+                                            </div>
+                                            <p className="text-sm text-gray-700 leading-relaxed">{aiReason}</p>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-wrap gap-2 justify-center mb-4">
+                                        <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-md">{selectedResult.mainCat}</span>
+                                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-md">{selectedResult.subCat}</span>
+                                        {selectedResult.price && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md">{selectedResult.price}</span>}
+                                    </div>
+                                    <p className="text-orange-600 font-bold mb-4 text-xl">{selectedResult.rating}★</p>
+                                    
+                                    <button onClick={() => openGoogleMaps(selectedResult.name)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-sm border border-blue-200 active:scale-95 transition-transform">
+                                        <Navigation className="w-5 h-5" /> Google Maps
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 w-full">
+                                <button onClick={handleRandomize} disabled={isSpinning} className={`flex-1 py-4 rounded-2xl text-lg font-bold text-white flex items-center justify-center gap-2 ${isSpinning ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90 shadow-sm active:scale-95 transition-all'}`}>
+                                    {isSpinning ? <RotateCcw className="w-5 h-5 animate-spin" /> : <><Shuffle className="w-5 h-5" /> 隨便幫我選</>}
+                                </button>
+                                <button 
+                                    onClick={() => setShowAIModal(true)}
+                                    disabled={isSpinning}
+                                    className="flex-none w-16 bg-white border-2 border-blue-100 text-blue-600 rounded-2xl shadow-sm hover:bg-blue-50 active:scale-95 transition-transform flex items-center justify-center"
+                                    title="AI 靈感幫手"
+                                >
+                                    <Sparkles className="w-6 h-6" />
+                                </button>
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* Footer - Professional Credits */}
+                    <footer className="bg-gray-100 text-center py-6 px-4 border-t border-gray-200 mt-auto">
+                        <div className="flex flex-col items-center gap-2">
+                            <p className="text-xs text-gray-500 font-[Futura,sans-serif] tracking-tight">
+                                Food list created by <span className="font-bold text-gray-700">今今</span>
+                            </p>
+                            <div className="w-12 h-0.5 bg-gray-300 rounded-full my-1"></div>
+                            <p className="text-xs text-gray-500 font-[Futura,sans-serif] tracking-tight">
+                                Designed by <span className="font-bold text-gray-700">翁譽瑄</span> & <span className="font-bold text-blue-600">Gemini 3 pro</span>
+                            </p>
+                            <p className="text-[10px] text-gray-400 mt-1 font-[Futura,sans-serif] tracking-tight cursor-pointer hover:text-orange-500 transition-colors" onClick={handleForceReload} title="點擊強制重新整理">
+                                Last Updated: 2025.12.10 (v2.0)
+                            </p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<FoodSelectorApp />);
+    </script>
+</body>
+</html>
