@@ -2,7 +2,7 @@
 
 A smart dining decision app combining **AI recommendations** and **multi-tag filtering** to help you decide what to eat around NTU.
 
-Live demo: https://69384dfa08336743885accce--ntufoodselector.netlify.app/
+Live demo: https://693979cd9ef4039b6c392ce7--ntufoodselector.netlify.app/
 
 ## Overview
 
